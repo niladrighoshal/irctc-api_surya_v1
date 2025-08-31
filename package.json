@@ -53,8 +53,10 @@
     ".npmignore"
   ],
   "dependencies": {
+    "express": "^4.19.2",
     "tough-cookie": "^5.0.0",
-    "undici": "^7.1.0"
+    "undici": "^7.1.0",
+    "ws": "^8.17.0"
   },
   "engines": {
     "node": ">20.0.0",

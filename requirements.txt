@@ -1,49 +1,10 @@
-# ---------------- Core ----------------
-numpy
-pandas
-psutil
-requests
-typing-extensions
-pydantic
-
-# ---------------- Database ----------------
-sqlite-utils   # optional (stdlib sqlite3 is already included)
-lmdb
-
-# ---------------- GUI ----------------
-PyQt5
-
-# ---------------- Image Processing ----------------
-pillow
+torch
+torchvision
+torchaudio
 opencv-python
-
-# ---------------- Excel Integration ----------------
-xlwings
-openpyxl  # useful for pandas Excel I/O
-
-# ---------------- Deep Learning (CPU Only) ----------------
-torch==2.8.0+cpu
-torchvision==0.19.0+cpu
-torchaudio==2.8.0+cpu
---extra-index-url https://download.pytorch.org/whl/cpu
-
-# ---------------- OCR / Models ----------------
-timm
-git+https://github.com/baudm/parseq.git
-
-# ---------------- NLP ----------------
+numpy
+Pillow
 nltk
-regex
-
-# ---------------- Web / API ----------------
-fastapi
-uvicorn
-playwright
-
-# ---------------- Utilities ----------------
-psutil
-scipy
-matplotlib
-seaborn
-tqdm
-pyyaml
+PyYAML
+pytorch-lightning
+timm
