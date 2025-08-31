@@ -1,0 +1,8 @@
+# Each proxy should be on a new line in the format:
+# http://user:password@host:port
+# or
+# http://host:port
+
+http://user1:pass1@proxy.example.com:8080
+http://user2:pass2@proxy.example.com:8080
+http://192.168.1.100:3128
