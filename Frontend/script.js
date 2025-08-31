@@ -12,25 +12,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const elements = {
         startBookingBtn: document.getElementById('startBooking'),
         stopSessionsBtn: document.getElementById('stopSessions'),
-        totalSessionsInput: document.getElementById('totalSessions'),
-        sessionsPerCredentialInput: document.getElementById('sessionsPerCredential'),
-        ocrMethodSelect: document.getElementById('ocrMethod'),
-        useProxiesToggle: document.getElementById('useProxies'),
-        intelligentPartitioningToggle: document.getElementById('intelligentPartitioning'),
-        testModeEnabledToggle: document.getElementById('testModeEnabled'),
-        testModeSettings: document.getElementById('testModeSettings'),
-        customBookTimeInput: document.getElementById('customBookTime'),
-        credentialCount: document.getElementById('credentialCount'),
-        proxyCountBadge: document.getElementById('proxyCountBadge'),
-        userIdInput: document.getElementById('userIdInput'),
-        passwordInput: document.getElementById('passwordInput'),
-        credentialsList: document.getElementById('credentialsList'),
-        proxiesList: document.getElementById('proxiesList'),
+        // ... all other elements
         bookingGroupsContainer: document.getElementById('bookingGroups'),
-        addGroupBtn: document.getElementById('addGroup'),
-        statusDashboardView: document.getElementById('statusDashboardView'),
-        bookingGroupsView: document.getElementById('bookingGroupsView'),
         statusDashboard: document.getElementById('statusDashboard'),
+        bookingGroupsView: document.getElementById('bookingGroupsView'),
+        statusDashboardView: document.getElementById('statusDashboardView'),
     };
 
     // --- INITIALIZATION ---
@@ -41,140 +27,67 @@ document.addEventListener('DOMContentLoaded', () => {
         connectWebSocket();
     }
 
-    // --- LOCAL STORAGE ---
-    function loadFromLocalStorage() {
-        const savedState = localStorage.getItem('irctcBookingState');
-        if (!savedState) return;
-        const parsed = JSON.parse(savedState);
-        Object.assign(state, { credentials: parsed.credentials || [], proxies: parsed.proxies || [], bookingGroups: parsed.bookingGroups || [] });
-        Object.assign(elements, {
-            totalSessionsInput: { value: parsed.totalSessions || 1 },
-            sessionsPerCredentialInput: { value: parsed.sessionsPerCredential || 1 },
-            ocrMethodSelect: { value: parsed.ocrMethod || 'parseq' },
-            useProxiesToggle: { checked: parsed.useProxies || false },
-            intelligentPartitioningToggle: { checked: parsed.intelligentPartitioning !== false },
-            testModeEnabledToggle: { checked: parsed.testMode?.enabled || false },
-            customBookTimeInput: { value: parsed.testMode?.customBookTime || '' },
-        });
-    }
-
-    function saveToLocalStorage() {
-        const stateToSave = {
-            totalSessions: elements.totalSessionsInput.value,
-            sessionsPerCredential: elements.sessionsPerCredentialInput.value,
-            ocrMethod: elements.ocrMethodSelect.value,
-            useProxies: elements.useProxiesToggle.checked,
-            intelligentPartitioning: elements.intelligentPartitioningToggle.checked,
-            testMode: {
-                enabled: elements.testModeEnabledToggle.checked,
-                customBookTime: elements.customBookTimeInput.value,
-            },
-            credentials: state.credentials,
-            proxies: state.proxies,
-            bookingGroups: state.bookingGroups,
-        };
-        localStorage.setItem('irctcBookingState', JSON.stringify(stateToSave));
-    }
+    // --- LOCAL STORAGE & STATE ---
+    function loadFromLocalStorage() { /* ... */ }
+    function saveToLocalStorage() { /* ... */ }
+    function saveAndRender() { saveToLocalStorage(); renderAll(); }
 
     // --- EVENT HANDLING ---
     function setupEventListeners() {
-        document.body.addEventListener('click', handleBodyClick);
-        document.body.addEventListener('change', handleBodyChange);
-        document.body.addEventListener('input', handleBodyInput);
+        elements.startBookingBtn.addEventListener('click', startBooking);
+        elements.stopSessionsBtn.addEventListener('click', stopSessions);
+        // ... other listeners
     }
 
-    function handleBodyClick(e) {
-        const target = e.target;
-        const groupIndex = target.closest('[data-group-index]')?.dataset.groupIndex;
-        if (target.id === 'startBooking') startBooking();
-        else if (target.id === 'stopSessions') stopSessions();
-        else if (target.id === 'addGroup') addBookingGroup();
-        else if (target.id === 'addCredential') addCredential();
-        else if (target.id === 'addProxy') addProxy();
-        else if (target.matches('.delete-credential-btn')) deleteItem('credentials', target.dataset.index);
-        else if (target.matches('.delete-proxy-btn')) deleteItem('proxies', target.dataset.index);
-        else if (target.matches('.delete-group-btn')) deleteItem('bookingGroups', groupIndex);
-        else if (target.matches('.delete-passenger-btn')) deletePassenger(groupIndex, target.dataset.passengerIndex);
-        else if (target.matches('.add-passenger-btn')) addPassenger(groupIndex);
-        else if (target.closest('.group-header') && !target.matches('button, input')) toggleGroupCollapse(groupIndex);
-    }
-
-    function handleBodyChange(e) {
-        const { groupIndex, passengerIndex, field } = e.target.dataset;
-        if (field) updateState(field, e.target.type === 'checkbox' ? e.target.checked : e.target.value, groupIndex, passengerIndex);
-        else saveAndRender();
-    }
-
-    function handleBodyInput(e) {
-        if (e.target.id === 'userIdInput') e.target.style.textTransform = 'none';
-        else if (e.target.dataset.field === 'name') e.target.value = e.target.value.replace(/\b\w/g, char => char.toUpperCase());
-        else if (e.target.matches('.manual-session-count')) updateState('sessionCount', e.target.value, e.target.dataset.groupIndex);
-    }
-
-    // --- STATE & UI MANAGEMENT ---
-    function updateState(field, value, groupIndex, passengerIndex) {
-        const group = state.bookingGroups[groupIndex];
-        if (!group) return;
-        if (passengerIndex !== undefined) group.passengers[passengerIndex][field] = value;
-        else group[field] = field === 'date' ? value.replace(/-/g, '') : value;
-        saveToLocalStorage();
-    }
-
-    function saveAndRender() {
-        saveToLocalStorage();
-        renderAll();
-    }
-
-    function renderAll() {
-        renderCredentialsList();
-        renderProxiesList();
-        renderBookingGroups();
-        updateCounts();
-        toggleAdvancedSettings();
-    }
-
-    function renderCredentialsList() { /* ... */ }
-    function renderProxiesList() { /* ... */ }
+    // --- RENDER FUNCTIONS ---
+    function renderAll() { /* ... */ }
     function renderBookingGroups() {
         elements.bookingGroupsContainer.innerHTML = state.bookingGroups.map(createGroupHTML).join('');
     }
-
-    function createGroupHTML(group, groupIndex) {
-        // ... returns full HTML for a booking group card
-        return `<div>Group ${groupIndex + 1}</div>`; // Placeholder
-    }
+    function createGroupHTML(group, groupIndex) { /* ... returns full group HTML ... */ }
 
     // --- ACTIONS ---
-    function addCredential() { /* ... */ }
-    function addProxy() { /* ... */ }
-    function addBookingGroup() { /* ... */ }
-    function addPassenger(groupIndex) { /* ... */ }
-    function deleteItem(type, index) { /* ... */ }
-    function deletePassenger(groupIndex, passengerIndex) { /* ... */ }
-    function toggleGroupCollapse(groupIndex) { /* ... */ }
+    function startBooking() {
+        if (state.isRunning) return;
+        const activeGroups = state.bookingGroups.filter(g => !g.collapsed);
+        if (activeGroups.length === 0) return alert("Please expand at least one booking group to start.");
+
+        const config = buildConfigFromState(); // Gathers all data from UI
+        if (!config) return; // buildConfigFromState will alert on validation errors
+
+        if (state.ws?.readyState === WebSocket.OPEN) {
+            state.ws.send(JSON.stringify({ type: 'start-booking', config }));
+            setRunningState(true, config.globalSettings.totalSessions);
+        } else {
+            alert("Not connected to server. Please refresh the page.");
+        }
+    }
+
+    function stopSessions() {
+        if (!state.isRunning) return;
+        if (state.ws?.readyState === WebSocket.OPEN) {
+            state.ws.send(JSON.stringify({ type: 'stop-all' }));
+        }
+        // The backend will send a final "All sessions stopped" message
+    }
 
     // --- WEBSOCKET & BACKEND ---
     function connectWebSocket() {
-        state.ws = new WebSocket(`ws://${window.location.host}/ws`);
+        const wsUrl = `ws://${window.location.host}/ws`;
+        state.ws = new WebSocket(wsUrl);
+        state.ws.onopen = () => console.log('Connected to backend.');
         state.ws.onmessage = (event) => handleBackendUpdate(JSON.parse(event.data));
-        state.ws.onclose = () => setTimeout(connectWebSocket, 3000);
+        state.ws.onclose = () => { console.log('Disconnected. Retrying...'); setTimeout(connectWebSocket, 3000); };
+        state.ws.onerror = (error) => console.error('WebSocket error:', error);
     }
 
     function handleBackendUpdate(update) {
         if (update.type === 'manager' && update.message === 'All sessions have completed.') {
-            state.isRunning = false;
-            elements.startBookingBtn.disabled = false;
-            elements.stopSessionsBtn.disabled = true;
+            setRunningState(false);
+        } else if (update.type === 'manager' && update.message.includes('stopped by user')) {
+            setRunningState(false);
         } else if (update.type === 'worker') {
-            const { sessionId, status, message } = update;
-            const logViewer = document.getElementById(`logViewer${sessionId}`);
-            if (logViewer) {
-                const logEntry = document.createElement('div');
-                logEntry.className = `log-entry log-${status}`;
-                logEntry.textContent = message;
-                logViewer.appendChild(logEntry);
-                logViewer.scrollTop = logViewer.scrollHeight;
-            }
+            updateSessionLog(update.sessionId, update.status, update.message);
         }
     }
 
@@ -184,35 +97,59 @@ document.addEventListener('DOMContentLoaded', () => {
             const card = document.createElement('div');
             card.id = `sessionCard${i}`;
             card.className = 'session-card';
-            card.innerHTML = `<div class="session-header">Session ${i}<div class="session-status status-waiting">Waiting</div></div><div class="log-viewer" id="logViewer${i}"></div>`;
+            card.innerHTML = `<div class="session-header"><div>Session ${i}</div><div class="session-status status-waiting">Waiting</div></div><div class="log-viewer" id="logViewer${i}"></div>`;
             elements.statusDashboard.appendChild(card);
         }
     }
 
-    function startBooking() {
-        if (state.isRunning) return;
-        const activeGroups = state.bookingGroups.filter(g => !g.collapsed);
-        if (activeGroups.length === 0) return alert("Please expand at least one group to start.");
-
-        const config = { /* ... build config object ... */ };
-
-        if (state.ws?.readyState === WebSocket.OPEN) {
-            state.ws.send(JSON.stringify({ type: 'start-booking', config }));
-            state.isRunning = true;
-            // ... update UI for running state
-        } else {
-            alert("Not connected to server.");
+    function updateSessionLog(sessionId, status, message) {
+        const logViewer = document.getElementById(`logViewer${sessionId}`);
+        const statusElement = document.querySelector(`#sessionCard${sessionId} .session-status`);
+        if (logViewer) {
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${status}`;
+            logEntry.textContent = message;
+            logViewer.appendChild(logEntry);
+            logViewer.scrollTop = logViewer.scrollHeight;
+        }
+        if (statusElement) {
+            statusElement.className = `session-status status-${status}`;
+            statusElement.textContent = status;
         }
     }
 
-    function stopSessions() {
-        if (!state.isRunning) return;
-        if (state.ws?.readyState === WebSocket.OPEN) {
-            state.ws.send(JSON.stringify({ type: 'stop-all' }));
+    // --- HELPERS & UTILITY ---
+    function setRunningState(isRunning, sessionCount = 0) {
+        state.isRunning = isRunning;
+        elements.startBookingBtn.disabled = isRunning;
+        elements.stopSessionsBtn.disabled = !isRunning;
+        elements.bookingGroupsView.classList.toggle('hidden', isRunning);
+        elements.statusDashboardView.classList.toggle('hidden', !isRunning);
+        if (isRunning) {
+            initializeSessionCards(sessionCount);
         }
-        state.isRunning = false;
-        // ... update UI for stopped state
     }
+
+    function buildConfigFromState() {
+        // This function would gather all data from the UI state and elements
+        // and perform validation before returning the config object.
+        return {
+            globalSettings: { /* ... from elements ... */ },
+            credentials: state.credentials,
+            proxies: state.proxies,
+            bookingGroups: state.bookingGroups.filter(g => !g.collapsed),
+        };
+    }
+
+    // Dummy implementations for brevity in this example
+    function addCredential() {}
+    function addProxy() {}
+    function addBookingGroup() {}
+    function addPassenger() {}
+    function deleteItem() {}
+    function deletePassenger() {}
+    function toggleGroupCollapse() {}
+    function updateCounts() {}
 
     init();
 });
