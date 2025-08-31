@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <link rel="icon" type="image/x-icon" href="./favicon_2.ico">
+    <title>IRCTC Parallel Booking Engine</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Settings Sidebar -->
+        <div class="sidebar">
+            <!-- Run Controls -->
+            <div class="sidebar-section">
+                <div class="run-controls">
+                    <button id="startBooking" class="btn btn-primary">START BOOKING</button>
+                    <button id="stopSessions" class="btn btn-danger" disabled>STOP ALL SESSIONS</button>
+                </div>
+            </div>
+
+            <!-- Global Settings -->
+            <div class="sidebar-section">
+                <h3>Global Settings</h3>
+                <div class="form-group">
+                    <label for="totalSessions">Total Sessions</label>
+                    <input type="number" id="totalSessions" min="1" value="1">
+                </div>
+                <div class="form-group">
+                    <label for="sessionsPerCredential">Sessions Per Credential</label>
+                    <input type="number" id="sessionsPerCredential" min="1" max="2" value="1">
+                </div>
+                <div class="form-group">
+                    <label for="ocrMethod">OCR Method</label>
+                    <select id="ocrMethod">
+                        <option value="parseq" selected>PARSEQ (Local)</option>
+                        <option value="gcloud">Google Vision</option>
+                        <option value="manual">Manual</option>
+                    </select>
+                </div>
+                <div class="form-group toggle-with-label">
+                    <label for="useProxies">Use Proxies</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="useProxies">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <hr>
+                <div class="form-group toggle-with-label">
+                    <label for="intelligentPartitioning">Intelligent Partitioning</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="intelligentPartitioning" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="form-group toggle-with-label">
+                    <label for="testModeEnabled">Test Mode (for GN Quota)</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="testModeEnabled">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div id="testModeSettings" class="collapsible-form hidden">
+                    <div class="form-group">
+                        <label for="customBookTime">Custom Booking Time</label>
+                        <input type="datetime-local" id="customBookTime">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Credentials -->
+            <div class="sidebar-section">
+                <div class="section-header">
+                    <h3>Credentials</h3>
+                    <span class="count-badge" id="credentialCount">0</span>
+                </div>
+                <button id="toggleCredentialForm" class="btn btn-secondary toggle-btn">➕ Add Credential</button>
+                <div id="credentialForm" class="collapsible-form hidden">
+                    <div class="add-item-form">
+                        <input type="text" id="userIdInput" placeholder="User ID">
+                        <input type="password" id="passwordInput" placeholder="Password">
+                        <button id="addCredential" class="btn btn-success">💾 Save</button>
+                    </div>
+                </div>
+                <div id="credentialsList" class="credentials-list"></div>
+            </div>
+
+            <!-- Proxies -->
+            <div class="sidebar-section">
+                <div class="section-header">
+                    <h3>Proxies</h3>
+                    <span class="count-badge" id="proxyCountBadge">0</span>
+                </div>
+                <button id="toggleProxyForm" class="btn btn-secondary toggle-btn">➕ Add Proxy</button>
+                <div id="proxyForm" class="collapsible-form hidden">
+                    <div class="add-item-form">
+                        <input type="text" id="proxyInput" placeholder="Proxy URL (http://user:pass@host:port)">
+                        <button id="addProxy" class="btn btn-success">💾 Save</button>
+                    </div>
+                </div>
+                <div id="proxiesList" class="proxies-list"></div>
+            </div>
+
+            <!-- Groups Overview -->
+            <div class="sidebar-section">
+                <h3>Saved Groups</h3>
+                <div id="groupsOverview" class="groups-overview">
+                    <!-- Groups will be listed here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Header with real-time clock -->
+            <div class="main-header">
+                <h2>Booking Groups Configuration</h2>
+                <div id="realTimeClock" class="real-time-clock">--:--:---- --:--:--.---</div>
+            </div>
+
+            <!-- View Containers -->
+            <div id="bookingGroupsView" class="view-container">
+                <div id="bookingGroups" class="booking-groups">
+                    <!-- Booking groups will be added here dynamically -->
+                </div>
+                <button id="addGroup" class="btn btn-primary add-group-btn">➕ Add New Booking Group</button>
+            </div>
+
+            <div id="statusDashboardView" class="view-container hidden">
+                <div id="statusDashboard" class="status-dashboard">
+                    <!-- Session cards will be added here dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
