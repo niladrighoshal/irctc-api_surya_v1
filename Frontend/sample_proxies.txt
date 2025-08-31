@@ -1,5 +1,1 @@
-http://user1:pass1@proxy1.example.com:8080
-http://user2:pass2@proxy2.example.com:8080
-http://user3:pass3@proxy3.example.com:8080
-http://user4:pass4@proxy4.example.com:8080
-http://user5:pass5@proxy5.example.com:8080
+
