@@ -57,25 +57,33 @@
 
             <div class="sidebar-section">
                 <h3>Saved Groups</h3>
-                <div id="groupsOverview" class="groups-overview"></div>
+                <div id="groupsOverview" class="groups-overview">
+                    <!-- Group summaries will be rendered here -->
+                </div>
             </div>
         </div>
 
         <!-- Main Content Area -->
         <div class="main-content">
             <div class="main-header">
-                <h2>Booking Groups Configuration</h2>
+                <h2 id="main-header-title">Booking Groups Configuration</h2>
                 <div id="realTimeClock" class="real-time-clock">--:--:---- --:--:--.---</div>
             </div>
             <div id="bookingGroupsView" class="view-container">
-                <div id="bookingGroups" class="booking-groups"></div>
+                <div id="bookingGroups" class="booking-groups">
+                    <!-- Booking groups will be rendered here -->
+                </div>
                 <button data-action="addBookingGroup" class="btn btn-primary add-group-btn">➕ Add New Booking Group</button>
             </div>
             <div id="statusDashboardView" class="view-container hidden">
-                <div id="statusDashboard" class="status-dashboard"></div>
+                <h2>Live Status Dashboard</h2>
+                <div id="statusDashboard" class="status-dashboard">
+                    <!-- Status cards will be rendered here -->
+                </div>
             </div>
         </div>
     </div>
+    <div id="toast-container"></div>
     <script src="idb.js"></script>
     <script src="script.js"></script>
 </body>
