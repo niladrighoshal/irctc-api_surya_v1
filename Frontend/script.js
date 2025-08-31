@@ -5,16 +5,18 @@ document.addEventListener('DOMContentLoaded', () => {
         proxies: [],
         bookingGroups: [],
         stations: [],
+        trains: [],
         isBooking: false,
         ws: null
     };
 
     // --- 2. INITIALIZATION ---
     async function initializeUI() {
-        // Fetch station list in parallel with loading other state
+        // Fetch station and train lists in parallel with loading other state
         await Promise.all([
             loadStateAndRender(),
-            fetchStations()
+            fetchStations(),
+            fetchTrainData()
         ]);
         setupEventListeners();
     }
@@ -64,15 +66,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchStations() {
         try {
-            const response = await fetch('/api/stations');
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            state.stations = await response.json();
+            const response = await fetch('railwayStationsList.json');
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            state.stations = data.map(s => `${s.station_code} - ${s.station_name}`);
         } catch (error) {
             console.error("Could not fetch station list:", error);
-            // The app can still function without autocomplete
         }
+    }
+
+    async function fetchTrainData() {
+        try {
+            const response = await fetch('train_data_simple.json');
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            state.trains = await response.json();
+        } catch (error) {
+            console.error("Could not fetch train data:", error);
+        }
+    }
+
+    function getStationNameFromCode(code) {
+        if (!code) return '';
+        const station = state.stations.find(s => s.startsWith(code));
+        return station ? station.split(' - ')[1] : 'Unknown Station';
+    }
+
+    function getTrainNameFromNumber(number) {
+        if (!number) return '';
+        const train = state.trains.find(t => t.train_number === number);
+        return train ? train.train_name : 'Unknown Train';
     }
 
     // --- 4. RENDERING LAYER ---
@@ -81,6 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderProxiesList();
         renderStationDatalist(); // Create the datalist before rendering groups that use it
         renderBookingGroups();
+        renderGroupsOverview();
         updateCounts();
         validateStateAndUI();
     }
@@ -110,7 +133,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderBookingGroups() {
-        const container = document.getElementById('bookingGroupsContainer');
+        const container = document.getElementById('bookingGroups');
+        if (!container) return;
         container.innerHTML = state.bookingGroups.map(group => {
             const passengersHTML = (group.passengers || []).map(pax => `
                 <div class="passenger-item" data-passenger-id="${pax.id}">
@@ -127,22 +151,34 @@ document.addEventListener('DOMContentLoaded', () => {
             return `
                 <div class="booking-group ${group.collapsed ? 'collapsed' : ''}" data-id="${group.id}">
                     <div class="group-header" data-action="toggleGroupCollapse">
-                        <h3>${group.name || 'New Group'}</h3><span class="status-indicator ${group.collapsed ? '' : 'active'}">${group.collapsed ? 'Inactive' : 'Active'}</span>
+                        <h3>${group.name || 'New Group'}</h3>
+                        <span class="status-indicator ${group.collapsed ? '' : 'active'}">${group.collapsed ? 'Inactive' : 'Active'}</span>
                     </div>
                     <div class="group-content">
                         <div class="form-grid">
-                            <input type="text" data-group-id="${group.id}" data-field="name" value="${group.name || ''}" placeholder="Group Name">
-                            <input type="text" data-group-id="${group.id}" data-field="trainNumber" value="${group.trainNumber || ''}" placeholder="Train No.">
+                            <input type="text" class="full-width" data-group-id="${group.id}" data-field="name" value="${group.name || ''}" placeholder="Group Name">
+                            <div class="input-with-lookup">
+                                <input type="text" data-group-id="${group.id}" data-field="trainNumber" value="${group.trainNumber || ''}" placeholder="Train No.">
+                                <span class="lookup-result" id="trainName-${group.id}">${getTrainNameFromNumber(group.trainNumber)}</span>
+                            </div>
                             <input type="text" data-group-id="${group.id}" data-field="class" value="${group.class || ''}" placeholder="Class (e.g., SL, 3A)">
-                            <input type="text" data-group-id="${group.id}" data-field="source" value="${group.source || ''}" placeholder="Source Station" list="station-list">
-                            <input type="text" data-group-id="${group.id}" data-field="destination" value="${group.destination || ''}" placeholder="Destination Station" list="station-list">
+                             <div class="input-with-lookup">
+                                <input type="text" data-group-id="${group.id}" data-field="source" value="${group.source || ''}" placeholder="Source Station" list="station-list">
+                                <span class="lookup-result" id="sourceName-${group.id}">${getStationNameFromCode(group.source)}</span>
+                            </div>
+                            <div class="input-with-lookup">
+                                <input type="text" data-group-id="${group.id}" data-field="destination" value="${group.destination || ''}" placeholder="Destination Station" list="station-list">
+                                <span class="lookup-result" id="destName-${group.id}">${getStationNameFromCode(group.destination)}</span>
+                            </div>
                             <input type="date" data-group-id="${group.id}" data-field="journeyDate" value="${group.journeyDate || ''}">
-                            <select data-group-id="${group.id}" data-field="quota">
+                             <select data-group-id="${group.id}" data-field="quota">
                                 <option value="GN" ${group.quota === 'GN' ? 'selected' : ''}>General</option>
                                 <option value="TQ" ${group.quota === 'TQ' ? 'selected' : ''}>Tatkal</option>
                                 <option value="PT" ${group.quota === 'PT' ? 'selected' : ''}>Premium Tatkal</option>
                                 <option value="SS" ${group.quota === 'SS' ? 'selected' : ''}>Lower Berth</option>
                             </select>
+                        </div>
+                        <div class="form-grid">
                             <input type="text" data-group-id="${group.id}" data-field="mobile" value="${group.mobile || ''}" placeholder="Mobile Number">
                         </div>
                         <div class="payment-options">
@@ -151,40 +187,54 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <option value="wallet" ${group.paymentMethod === 'wallet' ? 'selected' : ''}>IRCTC Wallet</option>
                             </select>
                             <input type="text" data-group-id="${group.id}" data-field="paymentId" value="${group.paymentId || ''}" placeholder="UPI ID" class="${group.paymentMethod === 'wallet' ? 'hidden' : ''}">
-                            <div class="wallet-warning ${group.paymentMethod !== 'wallet' ? 'hidden' : ''}">
-                                <span>⚠️ Wallet must have sufficient funds.</span>
-                            </div>
                         </div>
                         <div class="checkbox-options">
                             <label><input type="checkbox" data-group-id="${group.id}" data-field="autoUpgradation" ${group.autoUpgradation !== false ? 'checked' : ''}> Auto Upgradation</label>
                             <label><input type="checkbox" data-group-id="${group.id}" data-field="bookOnlyIfConfirm" ${group.bookOnlyIfConfirm !== false ? 'checked' : ''}> Book only if confirm</label>
                         </div>
-                        ${group.quota === 'GN' ? `
-                        <div class="gn-time-option">
-                            <label>GN Custom Time (optional):</label>
-                            <input type="time" data-group-id="${group.id}" data-field="gnBookingTime" value="${group.gnBookingTime || ''}" step="1">
-                        </div>
-                        ` : ''}
-                        <h4>Passengers <button data-action="addPassenger" class="add-btn-small">+</button></h4>
+                        <h4>Passengers <button data-action="addPassenger" class="btn btn-secondary add-btn-small">+</button></h4>
                         <div class="passengers-list">${passengersHTML}</div>
-                        <button data-action="deleteGroup" class="delete-btn group-delete-btn">Delete Group</button>
+                        <div class="group-actions">
+                            <button data-action="saveGroup" data-id="${group.id}" class="btn btn-success">💾 Save Group</button>
+                            <button data-action="deleteGroup" data-id="${group.id}" class="btn btn-danger">🗑️ Delete Group</button>
+                        </div>
                     </div>
                 </div>
             `;
         }).join('');
     }
 
+    function renderGroupsOverview() {
+        const overviewContainer = document.getElementById('groupsOverview');
+        if (!overviewContainer) return;
+        overviewContainer.innerHTML = state.bookingGroups.map(group => {
+            const date = group.journeyDate ? new Date(group.journeyDate).toLocaleDateString('en-GB').replace(/\//g, '') : 'N/A';
+            const from = group.source ? group.source.split(' - ')[0] : 'FROM';
+            const to = group.destination ? group.destination.split(' - ')[0] : 'TO';
+            const trainNo = group.trainNumber || 'Train';
+
+            return `
+                <div class="group-summary-item" data-id="${group.id}" data-action="focusGroup">
+                    <span>${from}-${to}:${trainNo}#${date}</span>
+                    <button data-action="deleteGroup" class="delete-btn-small" data-id="${group.id}">×</button>
+                </div>
+            `;
+        }).join('');
+    }
+
     function updateCounts() {
-        document.getElementById('credentialsCount').textContent = state.credentials.length;
-        document.getElementById('proxiesCount').textContent = state.proxies.length;
-        document.getElementById('groupsCount').textContent = state.bookingGroups.length;
+        const credsEl = document.getElementById('credentialCount');
+        if (credsEl) credsEl.textContent = state.credentials.length;
+        const proxyEl = document.getElementById('proxyCountBadge');
+        if (proxyEl) proxyEl.textContent = state.proxies.length;
+        // The main group count is now implicit in the lists
     }
 
     // --- 5. EVENT HANDLING ---
     function setupEventListeners() {
         document.body.addEventListener('click', handleDelegatedClick);
         document.body.addEventListener('input', handleDelegatedInput);
-        document.getElementById('configContainer').addEventListener('change', saveGlobalSettings);
+        document.querySelector('.sidebar').addEventListener('change', saveGlobalSettings);
         document.getElementById('proxyFileUpload').addEventListener('change', handleProxyFileUpload);
     }
 
@@ -195,19 +245,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.isBooking && !['stopBooking', 'toggleLogCollapse'].includes(action)) return;
 
         const id = target.closest('[data-id]')?.dataset.id;
-        const groupId = target.closest('.booking-group')?.dataset.id;
 
         const actions = {
             addCredential, addProxy, addBookingGroup,
             deleteCredential: () => deleteCredential(parseInt(id)),
             deleteProxy: () => deleteProxy(parseInt(id)),
             deleteGroup: () => deleteGroup(parseInt(id)),
-            addPassenger: () => addPassenger(parseInt(groupId)),
+            addPassenger: () => addPassenger(parseInt(id)),
             deletePassenger: () => {
                 const passengerId = target.closest('[data-passenger-id]').dataset.passengerId;
-                deletePassenger(parseInt(groupId), parseInt(passengerId));
+                deletePassenger(parseInt(id), parseInt(passengerId));
             },
             toggleGroupCollapse: () => toggleGroupCollapse(parseInt(id)),
+            saveGroup: () => saveGroup(parseInt(id)),
+            focusGroup: () => focusGroup(parseInt(id)),
             startBooking,
             stopBooking: () => stopBooking(true)
         };
@@ -225,16 +276,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const itemToUpdate = passengerId ? (group.passengers || []).find(p => p.id === parseInt(passengerId)) : group;
 
         if (itemToUpdate) {
-            // Handle different input types correctly
             if (e.target.type === 'checkbox') {
                 itemToUpdate[field] = e.target.checked;
             } else {
                 itemToUpdate[field] = e.target.value;
             }
-
+            // State is updated, and now it's saved to IDB on every input.
             await idb.update('bookingGroups', group);
 
-            // If a field that affects conditional UI changes, re-render everything
+            if (field === 'trainNumber') {
+                document.getElementById(`trainName-${groupId}`).textContent = getTrainNameFromNumber(e.target.value);
+            } else if (field === 'source') {
+                document.getElementById(`sourceName-${groupId}`).textContent = getStationNameFromCode(e.target.value);
+            } else if (field === 'destination') {
+                document.getElementById(`destName-${groupId}`).textContent = getStationNameFromCode(e.target.value);
+            }
+
+            // Conditional rendering still needs to happen.
             if (field === 'paymentMethod' || field === 'quota') {
                 renderAll();
             }
@@ -243,16 +301,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 6. ACTIONS (CRUD) ---
     async function addCredential() {
-        const uid = document.getElementById('userIdInput').value.trim();
-        const pwd = document.getElementById('passwordInput').value.trim();
-        if (!uid || !pwd) return;
+        const uidInput = document.getElementById('userIdInput');
+        const pwdInput = document.getElementById('passwordInput');
+        const uid = uidInput.value.trim();
+        const pwd = pwdInput.value.trim();
+        if (!uid || !pwd) {
+            showToast('User ID and Password cannot be empty.', 'error');
+            return;
+        }
         state.credentials.push({ userID: uid, password: pwd });
         saveListToLocalStorage('credentials', state.credentials);
+        uidInput.value = '';
+        pwdInput.value = '';
+        showToast('Credential saved successfully.', 'success');
         await loadStateAndRender();
     }
     async function deleteCredential(index) {
         state.credentials.splice(index, 1);
         saveListToLocalStorage('credentials', state.credentials);
+        showToast('Credential deleted.', 'info');
         await loadStateAndRender();
     }
     async function addProxy() {
@@ -261,20 +328,24 @@ document.addEventListener('DOMContentLoaded', () => {
         state.proxies.push(p.value.trim());
         saveListToLocalStorage('proxies', state.proxies);
         p.value = '';
+        showToast('Proxy saved successfully.', 'success');
         await loadStateAndRender();
     }
     async function deleteProxy(index) {
         state.proxies.splice(index, 1);
         saveListToLocalStorage('proxies', state.proxies);
+        showToast('Proxy deleted.', 'info');
         await loadStateAndRender();
     }
     async function addBookingGroup() {
-        const newGroup = { name: `Group ${Date.now()}`, passengers: [], collapsed: false };
+        const newGroup = { id: Date.now(), name: `New Group`, passengers: [], collapsed: false };
         await idb.add('bookingGroups', newGroup);
+        showToast('New booking group added.', 'success');
         await loadStateAndRender();
     }
     async function deleteGroup(id) {
         await idb.delete('bookingGroups', id);
+        showToast('Booking group deleted.', 'info');
         await loadStateAndRender();
     }
     async function addPassenger(groupId) {
@@ -285,12 +356,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const quota = group.quota || 'GN'; // Default to General quota
 
         if ((quota === 'TQ' || quota === 'PT') && passengerCount >= 4) {
-            alert('Tatkal and Premium Tatkal quotas only allow a maximum of 4 passengers.');
+            showToast('Tatkal quotas allow a maximum of 4 passengers.', 'error');
             return;
         }
 
         if (passengerCount >= 6) {
-            alert('A maximum of 6 passengers are allowed per booking.');
+            showToast('A maximum of 6 passengers are allowed per booking.', 'error');
             return;
         }
 
@@ -307,6 +378,41 @@ document.addEventListener('DOMContentLoaded', () => {
             await loadStateAndRender();
         }
     }
+
+    async function saveGroup(groupId) {
+        const group = state.bookingGroups.find(g => g.id === groupId);
+        if (!group) {
+            showToast('Could not find group to save.', 'error');
+            return;
+        }
+        await idb.update('bookingGroups', { ...group });
+        group.collapsed = true;
+        await idb.update('bookingGroups', { ...group });
+        showToast(`Group "${group.name}" saved successfully.`, 'success');
+        renderAll();
+    }
+
+    function focusGroup(groupId) {
+        const group = state.bookingGroups.find(g => g.id === groupId);
+        if (group) {
+            group.collapsed = false;
+            idb.update('bookingGroups', { ...group });
+            renderAll();
+
+            setTimeout(() => {
+                const groupElement = document.querySelector(`.booking-group[data-id="${groupId}"]`);
+                if (groupElement) {
+                    groupElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    groupElement.style.transition = 'outline 0.1s ease-in-out';
+                    groupElement.style.outline = '2px solid var(--primary-color)';
+                    setTimeout(() => {
+                        groupElement.style.outline = 'none';
+                    }, 1500);
+                }
+            }, 100); // Delay to allow rendering
+        }
+    }
+
     async function toggleGroupCollapse(groupId) {
         const group = state.bookingGroups.find(g => g.id === groupId);
         if (group) {
@@ -335,7 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.proxies = Array.from(uniqueProxies);
                 saveListToLocalStorage('proxies', state.proxies);
                 await loadStateAndRender();
-                alert(`${newProxies.length} proxies loaded successfully.`);
+                showToast(`${newProxies.length} proxies loaded successfully.`, 'success');
             }
         };
         reader.readAsText(file);
@@ -373,29 +479,28 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 8. WEBSOCKET & BOOKING LOGIC ---
     function startBooking() {
         if (state.isBooking) return;
+
+        const activeGroups = state.bookingGroups.filter(g => !g.collapsed);
+        if (activeGroups.length === 0) {
+            showToast("No active booking groups. Please expand at least one group to start.", "error");
+            return;
+        }
+
         state.isBooking = true;
-        const startBtn = document.getElementById('startBookingBtn');
-        startBtn.textContent = 'Stop Booking';
-        startBtn.dataset.action = 'stopBooking';
-        document.querySelectorAll('.main-container input, .main-container button, .main-container select').forEach(el => {
-            if (el.id !== 'startBookingBtn') el.disabled = true;
-        });
-        document.getElementById('logsContainer').innerHTML = '<li>Connecting to server...</li>';
+        toggleBookingView(true);
+
+        document.getElementById('statusDashboard').innerHTML = '<li>Connecting to server...</li>';
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         state.ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
 
         state.ws.onopen = () => {
             console.log('WebSocket connected.');
-            const activeGroups = state.bookingGroups.filter(g => !g.collapsed);
+            showToast(`Starting booking for ${activeGroups.length} active group(s).`, 'info');
 
-            // Create a deep copy of active groups to modify for backend payload
             const processedGroups = JSON.parse(JSON.stringify(activeGroups));
-
-            // Format the date for each group
             processedGroups.forEach(group => {
                 if (group.journeyDate) {
-                    // Removes hyphens from YYYY-MM-DD to get YYYYMMDD
                     group.journeyDate = group.journeyDate.replace(/-/g, '');
                 }
             });
@@ -404,11 +509,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 ocrMethod: document.getElementById('ocrMethod').value,
                 totalSessions: parseInt(document.getElementById('totalSessions').value),
                 sessionsPerCredential: parseInt(document.getElementById('sessionsPerCredential').value),
-                loginTimeOffset: parseInt(document.getElementById('loginTimeOffset').value),
-                bookingTimeOffset: parseInt(document.getElementById('bookingTimeOffset').value),
                 useProxies: document.getElementById('useProxies').checked,
                 intelligentPartitioning: document.getElementById('intelligentPartitioning').checked,
-                testMode: document.getElementById('testMode').checked,
+                testModeEnabled: document.getElementById('testModeEnabled').checked,
+                customBookTime: document.getElementById('customBookTime').value,
                 credentials: state.credentials,
                 proxies: state.proxies,
                 bookingGroups: processedGroups,
@@ -417,34 +521,34 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         state.ws.onmessage = (event) => {
-            const logContainer = document.getElementById('logsContainer');
+            const dashboard = document.getElementById('statusDashboard');
+            // ... more complex dashboard rendering logic here ...
             const message = event.data;
-            if (message.startsWith('IRCTC_TIME:')) {
-                document.getElementById('irctcTime').textContent = message.split(/:(.*)/s)[1];
-            } else {
-                const logEntry = document.createElement('li');
-                logEntry.textContent = message;
-                logContainer.appendChild(logEntry);
-                logContainer.scrollTop = logContainer.scrollHeight;
-            }
+            const logEntry = document.createElement('div');
+            logEntry.className = 'status-card';
+            logEntry.textContent = message;
+            dashboard.appendChild(logEntry);
         };
 
         state.ws.onerror = (error) => {
             console.error('WebSocket Error:', error);
-            stopBooking(false, 'Connection Error. Is the server running?');
+            showToast('Connection Error. Is the server running?', 'error');
+            stopBooking(false);
         };
 
         state.ws.onclose = () => {
             console.log('WebSocket disconnected.');
             if (state.isBooking) { // Unexpected close
-                stopBooking(false, 'Connection to server lost.');
+                showToast('Connection to server lost.', 'error');
+                stopBooking(false);
             }
         };
     }
 
-    function stopBooking(sendMessage = true, reason = 'Process stopped by user.') {
+    function stopBooking(sendMessage = true) {
         if (sendMessage && state.ws && state.ws.readyState === WebSocket.OPEN) {
             state.ws.send(JSON.stringify({ type: 'stop-booking' }));
+            showToast('Stopping all booking sessions.', 'info');
         }
         if (state.ws) {
             state.ws.onclose = null;
@@ -452,15 +556,42 @@ document.addEventListener('DOMContentLoaded', () => {
             state.ws = null;
         }
         state.isBooking = false;
-        const startBtn = document.getElementById('startBookingBtn');
-        startBtn.textContent = 'Start Booking';
-        startBtn.dataset.action = 'startBooking';
-        document.querySelectorAll('.main-container input, .main-container button, .main-container select').forEach(el => {
-            el.disabled = false;
+        toggleBookingView(false);
+    }
+
+    function toggleBookingView(isBooking) {
+        document.getElementById('bookingGroupsView').classList.toggle('hidden', isBooking);
+        document.getElementById('statusDashboardView').classList.toggle('hidden', !isBooking);
+        document.getElementById('startBooking').disabled = isBooking;
+        document.getElementById('stopSessions').disabled = !isBooking;
+        document.getElementById('main-header-title').textContent = isBooking ? 'Live Status Dashboard' : 'Booking Groups Configuration';
+
+        // Disable sidebar controls during booking
+        const sidebarControls = document.querySelectorAll('.sidebar input, .sidebar select, .sidebar button:not(#startBooking):not(#stopSessions)');
+        sidebarControls.forEach(el => {
+            if(el.id !== 'startBooking' && el.id !== 'stopSessions') {
+                el.disabled = isBooking;
+            }
         });
-        validateStateAndUI();
-        const logContainer = document.getElementById('logsContainer');
-        logContainer.innerHTML += `<li>${reason}</li>`;
+    }
+
+    // --- 8. UI FEEDBACK ---
+    function showToast(message, type = 'info', duration = 3000) {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.animation = 'slideOut 0.5s forwards';
+            toast.addEventListener('animationend', () => {
+                toast.remove();
+            });
+        }, duration);
     }
 
     // --- KICK-OFF ---
